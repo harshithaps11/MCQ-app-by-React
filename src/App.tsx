@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { AnimatePresence } from 'framer-motion';
-import { questions } from './data/questions';
+import { AnimatePresence, motion } from 'framer-motion';
+import { questionsByTopic } from './data/questionsByTopic';
 import QuestionCard from './components/QuestionCard';
 import ProgressBar from './components/ProgressBar';
 import ResultScreen from './components/ResultScreen';
+import TopicSelection from './components/TopicSelection';
+import QuestionCountSelector from './components/QuestionCountSelector';
 import { GameState } from './types';
-import { Brain } from 'lucide-react';
 
 export default function App() {
   const [gameState, setGameState] = useState<GameState>({
@@ -13,13 +14,34 @@ export default function App() {
     score: 0,
     answers: [],
     isComplete: false,
+    selectedTopic: null,
+    questionCount: null
   });
 
-  const currentQuestion = questions[gameState.currentQuestionIndex];
+  const handleTopicSelect = (topicId: string) => {
+    setGameState({
+      ...gameState,
+      selectedTopic: topicId,
+      questionCount: null
+    });
+  };
+
+  const handleQuestionCountSelect = (count: number) => {
+    setGameState({
+      currentQuestionIndex: 0,
+      score: 0,
+      answers: [],
+      isComplete: false,
+      selectedTopic: gameState.selectedTopic,
+      questionCount: count
+    });
+  };
 
   const handleAnswer = (answerIndex: number) => {
-    if (gameState.answers[gameState.currentQuestionIndex] !== undefined) return;
+    if (!gameState.selectedTopic || !gameState.questionCount || 
+        gameState.answers[gameState.currentQuestionIndex] !== undefined) return;
 
+    const currentQuestion = questionsByTopic[gameState.selectedTopic][gameState.currentQuestionIndex];
     const newAnswers = [...gameState.answers];
     newAnswers[gameState.currentQuestionIndex] = answerIndex;
 
@@ -28,7 +50,7 @@ export default function App() {
       : gameState.score;
 
     setTimeout(() => {
-      if (gameState.currentQuestionIndex === questions.length - 1) {
+      if (gameState.currentQuestionIndex === gameState.questionCount! - 1) {
         setGameState({
           ...gameState,
           answers: newAnswers,
@@ -52,44 +74,74 @@ export default function App() {
       score: 0,
       answers: [],
       isComplete: false,
+      selectedTopic: null,
+      questionCount: null
     });
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900 py-8 px-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center space-x-2">
-            <Brain className="w-8 h-8 text-emerald-400" />
-            <h1 className="text-3xl font-bold text-white">Knowledge Quest</h1>
-          </div>
-        </div>
+  const handleBack = () => {
+    setGameState({
+      ...gameState,
+      selectedTopic: null,
+      questionCount: null
+    });
+  };
 
-        <div className="bg-slate-700 rounded-xl shadow-2xl p-8 border border-slate-600">
+  const renderContent = () => {
+    if (!gameState.selectedTopic) {
+      return <TopicSelection onSelectTopic={handleTopicSelect} />;
+    }
+
+    if (!gameState.questionCount) {
+      return (
+        <QuestionCountSelector
+          topicId={gameState.selectedTopic}
+          maxQuestions={questionsByTopic[gameState.selectedTopic].length}
+          onSelect={handleQuestionCountSelect}
+          onBack={handleBack}
+        />
+      );
+    }
+
+    return (
+      <motion.div
+        key="quiz"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        className="max-w-4xl mx-auto"
+      >
+        <div className="bg-slate-700/50 backdrop-blur-lg rounded-xl shadow-2xl p-8 border border-slate-600">
           {!gameState.isComplete ? (
             <>
               <ProgressBar
                 current={gameState.currentQuestionIndex}
-                total={questions.length}
+                total={gameState.questionCount}
               />
-              <AnimatePresence mode="wait">
-                <QuestionCard
-                  key={currentQuestion.id}
-                  question={currentQuestion}
-                  onAnswer={handleAnswer}
-                  selectedAnswer={gameState.answers[gameState.currentQuestionIndex]}
-                />
-              </AnimatePresence>
+              <QuestionCard
+                key={questionsByTopic[gameState.selectedTopic][gameState.currentQuestionIndex].id}
+                question={questionsByTopic[gameState.selectedTopic][gameState.currentQuestionIndex]}
+                onAnswer={handleAnswer}
+                selectedAnswer={gameState.answers[gameState.currentQuestionIndex]}
+              />
             </>
           ) : (
             <ResultScreen
               score={gameState.score}
-              totalQuestions={questions.length}
+              totalQuestions={gameState.questionCount}
               onRestart={handleRestart}
             />
           )}
         </div>
-      </div>
+      </motion.div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 py-12 px-4">
+      <AnimatePresence mode="wait">
+        {renderContent()}
+      </AnimatePresence>
     </div>
   );
 }

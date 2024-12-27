@@ -10,4 +10,14 @@ export interface GameState {
   score: number;
   answers: number[];
   isComplete: boolean;
+  selectedTopic: string | null;
+  questionCount: number | null;
+}
+
+export interface Topic {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  color: string;
 }
